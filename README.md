@@ -185,3 +185,4 @@ Common issues:
 **App won't install on iPhone** → Must open in **Safari** (not Chrome on iOS) for the install prompt to work
 
 **CSV import says "no records found"** → Try downloading a fresh export from the platform app — the format sometimes varies by account type
+# gigtrack-pro
