@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6366f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GigTrack">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>GigTrack Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --p:#6366f1;--pd:#4f46e5;--pl:#e0e7ff;--p2:#818cf8;
+  --g:#10b981;--r:#ef4444;--y:#f59e0b;
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--light:#f8fafc;
+  --nav-h:64px;--safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text)}
+input,select,button{font-family:inherit;font-size:16px}/* 16px prevents iOS zoom */
+
+/* ── AUTH SCREENS ── */
+.auth-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100dvh;padding:20px;
+  background:linear-gradient(160deg,#eef2ff,#f8f7ff);
+}
+.auth-box{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(99,102,241,.15)}
+.auth-logo{text-align:center;margin-bottom:24px}
+.auth-logo-ico{width:52px;height:52px;background:var(--p);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 10px}
+.auth-logo h1{font-size:20px;font-weight:800;color:var(--p)}
+.auth-box h2{font-size:22px;font-weight:800;margin-bottom:4px}
+.auth-box .sub{font-size:14px;color:var(--muted);margin-bottom:24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.field input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:13px 14px;font-size:16px;outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.auth-switch{text-align:center;font-size:14px;color:var(--muted);margin-top:16px}
+.auth-switch span{color:var(--p);font-weight:600;cursor:pointer}
+.err-msg{background:#fee2e2;color:#dc2626;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+
+/* ── APP SHELL ── */
+.app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+
+/* Top bar */
+.topbar{
+  flex-shrink:0;height:calc(56px + var(--safe-t));
+  padding-top:var(--safe-t);
+  background:var(--p);
+  display:flex;align-items:center;justify-content:space-between;
+  padding-left:16px;padding-right:16px;
+  box-shadow:0 2px 8px rgba(99,102,241,.3);
+}
+.topbar-title{font-size:18px;font-weight:800;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.avatar-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.25);border:none;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.plan-chip{background:rgba(255,255,255,.2);color:#fff;border-radius:20px;font-size:11px;font-weight:700;padding:3px 10px}
+
+/* Scrollable content area */
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
+.content-inner{padding:16px 16px calc(var(--nav-h) + var(--safe-b) + 16px)}
+
+/* Bottom nav */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--nav-h) + var(--safe-b));
+  padding-bottom:var(--safe-b);
+  background:#fff;
+  border-top:1px solid var(--border);
+  display:flex;
+  z-index:100;
+  box-shadow:0 -2px 12px rgba(0,0,0,.07);
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border:none;background:transparent;cursor:pointer;
+  color:var(--muted);padding:6px 0;transition:color .15s;
+  -webkit-user-select:none;user-select:none;
+}
+.nav-btn.active{color:var(--p)}
+.nav-ico{font-size:22px;line-height:1}
+.nav-lbl{font-size:10px;font-weight:600;line-height:1}
+.nav-dot{width:6px;height:6px;background:var(--r);border-radius:50%;position:absolute;top:6px;right:calc(50% - 14px)}
+
+/* ── CARDS ── */
+.card{background:var(--card);border-radius:14px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:14px}
+.card-body{padding:16px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border-radius:12px;padding:14px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.kpi-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:5px}
+.kpi-val{font-size:20px;font-weight:900;line-height:1}
+.kpi-val.g{color:var(--g)}.kpi-val.r{color:var(--r)}.kpi-val.b{color:var(--p)}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* Form */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.form-row.full{grid-template-columns:1fr}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:12px;font-weight:600;color:var(--muted)}
+.fg input,.fg select{border:1.5px solid var(--border);border-radius:9px;padding:11px 12px;font-size:16px;outline:none;background:#fff;color:var(--text);transition:border-color .15s;-webkit-appearance:none}
+.fg input:focus,.fg select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.fg input[readonly]{background:var(--light);color:var(--text)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;border-radius:10px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;min-height:44px}
+.btn-primary{background:var(--p);color:#fff;width:100%}
+.btn-primary:active{background:var(--pd)}
+.btn-ghost{background:var(--light);color:var(--text);border:1.5px solid var(--border);width:100%}
+.btn-danger{background:#fee2e2;color:#dc2626;border:none}
+.btn-sm{padding:7px 14px;font-size:13px;min-height:36px;border-radius:8px;width:auto}
+.btn-stripe{background:#635bff;color:#fff;width:100%}
+.btn-stripe:active{background:#5147ee}
+
+/* Table / List */
+.list-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 0;border-bottom:1px solid #f1f5f9;gap:10px;
+}
+.list-item:last-child{border-bottom:none}
+.li-main{flex:1;min-width:0}
+.li-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.li-amount{font-size:15px;font-weight:800;flex-shrink:0}
+.li-amount.g{color:var(--g)}.li-amount.r{color:var(--r)}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.bp{background:var(--pl);color:var(--pd)}
+.bc{background:#fef3c7;color:#92400e}
+
+/* Prog bar */
+.prog{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:8px}
+.prog-f{height:100%;border-radius:3px}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-ico{font-size:36px;margin-bottom:10px}
+.empty p{font-size:14px}
+
+/* Chart */
+.chart-wrap{position:relative;height:200px;margin-bottom:4px}
+
+/* Platform connection cards */
+.plat-card{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+}
+.plat-card:last-child{border-bottom:none}
+.plat-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.plat-info{flex:1;min-width:0}
+.plat-name{font-size:14px;font-weight:700}
+.plat-desc{font-size:12px;color:var(--muted);margin-top:2px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-g{background:var(--g)}.dot-grey{background:#cbd5e1}
+
+/* CSV upload zone */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:24px;text-align:center;cursor:pointer;
+  background:var(--light);transition:border-color .2s;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--p)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone-inner{position:relative}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:calc(var(--nav-h) + var(--safe-b) + 12px);left:16px;right:16px;
+  background:#1e293b;color:#fff;border-radius:12px;padding:13px 16px;
+  font-size:14px;font-weight:500;
+  transform:translateY(20px);opacity:0;transition:all .25s;
+  z-index:999;display:flex;align-items:center;gap:8px;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* Spinner */
+.spin{width:20px;height:20px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Install banner */
+.install-banner{
+  background:linear-gradient(135deg,var(--p),var(--p2));
+  color:#fff;padding:14px 16px;margin-bottom:14px;border-radius:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.install-banner p{font-size:13px;opacity:.9;margin-top:2px}
+
+/* Scrollbar */
+::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const API = '';  // same origin
+const PLATFORMS_META = {
+  doordash:   { name:'DoorDash',    ico:'🔴', bg:'#fef2f2', plans:['free','pro','business'], type:'csv' },
+  ubereats:   { name:'Uber Eats',   ico:'🟢', bg:'#f0fdf4', plans:['pro','business'],       type:'oauth' },
+  uber:       { name:'Uber',        ico:'⬛', bg:'#f8f8f8', plans:['pro','business'],       type:'oauth' },
+  lyft:       { name:'Lyft',        ico:'🩷', bg:'#fdf2ff', plans:['pro','business'],       type:'oauth' },
+  instacart:  { name:'Instacart',   ico:'🟩', bg:'#f0fdf4', plans:['pro','business'],       type:'csv' },
+  amazonflex: { name:'Amazon Flex', ico:'📦', bg:'#fffbeb', plans:['pro','business'],       type:'csv' },
+  spark:      { name:'Spark',       ico:'⚡', bg:'#eff6ff', plans:['pro','business'],       type:'csv' },
+};
+const CATEGORIES = ['Gas','Phone','Insurance','Repairs','Maintenance','Supplies','Parking','Tolls','Meals','Other'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let token = localStorage.getItem('gt_token') || '';
+let user  = JSON.parse(localStorage.getItem('gt_user') || 'null');
+let tab   = location.hash.slice(1) || 'dashboard';
+let summary = null;
+let income  = [], expenses = [], mileage = [], connections = {};
+let charts  = {};
+let installPrompt = null;
+
+// ══════════════════════════════════════════
+//  API HELPER
+// ══════════════════════════════════════════
+async function api(method, path, body, isForm) {
+  const opts = { method, headers: {} };
+  if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+  if (body && !isForm) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  if (isForm) opts.body = body;
+  const res = await fetch(API + path, opts);
+  if (res.status === 401) { logout(); return null; }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('json')) return res.json();
+  return null;
+}
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+function logout() {
+  token = ''; user = null;
+  localStorage.removeItem('gt_token'); localStorage.removeItem('gt_user');
+  summary = null; income = []; expenses = []; mileage = []; connections = {};
+  render();
+}
+
+async function doSignup() {
+  const name  = v('su-name'), email = v('su-email'), pass = v('su-pass');
+  if (!name || !email || !pass) return toast('Please fill in all fields', '⚠️');
+  setBtnLoading('su-btn', true);
+  const res = await api('POST', '/api/auth/signup', { name, email, password: pass });
+  setBtnLoading('su-btn', false);
+  if (res?.error) return showAuthError(res.error);
+  if (res?.token) { token = res.token; user = res.user; localStorage.setItem('gt_token', token); localStorage.setItem('gt_user', JSON.stringify(user)); tab = 'dashboard'; await loadAll(); render(); }
+}
+
+async function doLogin() {
+  const email = v('li-email'), pass = v('li-pass');
+  if (!email || !pass) return toast('Please enter email and password', '⚠️');
+  setBtnLoading('li-btn', true);
+  const res = await api('POST', '/api/auth/login', { email, password: pass });
+  setBtnLoading('li-btn', false);
+  if (res?.error) return showAuthError(res.error);
+  if (res?.token) { token = res.token; user = res.user; localStorage.setItem('gt_token', token); localStorage.setItem('gt_user', JSON.stringify(user)); tab = 'dashboard'; await loadAll(); render(); }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-err');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// ══════════════════════════════════════════
+//  DATA LOADING
+// ══════════════════════════════════════════
+async function loadAll() {
+  [summary, income, expenses, mileage] = await Promise.all([
+    api('GET', '/api/summary'),
+    api('GET', '/api/income'),
+    api('GET', '/api/expenses'),
+    api('GET', '/api/mileage'),
+  ]);
+  if (summary) { connections = summary.connections || {}; user = { ...user, ...summary.user }; }
+  if (income)   income   = income;
+  if (expenses) expenses = expenses;
+  if (mileage)  mileage  = mileage;
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function render() {
+  Object.values(charts).forEach(c => { try{c.destroy();}catch(e){} }); charts = {};
+  location.hash = tab;
+
+  if (!token || !user) { document.getElementById('root').innerHTML = renderAuth(); return; }
+  document.getElementById('root').innerHTML = renderApp();
+  requestAnimationFrame(initCharts);
+}
+
+function renderAuth() {
+  const isLogin = (tab === 'login');
+  return `
+  <div class="auth-screen">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="auth-logo-ico">📊</div>
+        <h1>GigTrack Pro</h1>
+      </div>
+      <h2>${isLogin ? 'Welcome back' : 'Get started free'}</h2>
+      <p class="sub">${isLogin ? 'Log in to your account' : 'Track every dollar across all your gig apps'}</p>
+      <div id="auth-err" class="err-msg" style="display:none"></div>
+      ${!isLogin ? `<div class="field"><label>Full Name</label><input id="su-name" placeholder="Alex Rivera" autocomplete="name" onkeydown="if(event.key==='Enter')doSignup()"></div>` : ''}
+      <div class="field"><label>Email</label><input id="${isLogin?'li':'su'}-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()}"}></div>
+      <div class="field"><label>Password</label><input id="${isLogin?'li':'su'}-pass" type="password" placeholder="••••••••" autocomplete="${isLogin?'current':'new'}-password" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()}"}"></div>
+      <button id="${isLogin?'li':'su'}-btn" class="btn btn-primary" onclick="${isLogin?'doLogin()':'doSignup()'}">
+        ${isLogin ? 'Log in' : 'Create account'}
+      </button>
+      <div class="auth-switch" style="margin-top:16px">
+        ${isLogin ? "Don't have an account? <span onclick=\"tab='signup';render()\">Sign up free</span>" : "Already have an account? <span onclick=\"tab='login';render()\">Log in</span>"}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderApp() {
+  const tabs = [
+    { id:'dashboard', ico:'📊', lbl:'Home' },
+    { id:'income',    ico:'💰', lbl:'Income' },
+    { id:'expenses',  ico:'💸', lbl:'Expenses' },
+    { id:'mileage',   ico:'🚗', lbl:'Mileage' },
+    { id:'more',      ico:'⋯',  lbl:'More' },
+  ];
+
+  const initials = (user?.name || 'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const planLabel = user?.plan ? user.plan.charAt(0).toUpperCase()+user.plan.slice(1) : 'Free';
+  const pageTitle = { dashboard:'Dashboard', income:'Income Log', expenses:'Expenses', mileage:'Mileage', tax:'Tax Estimate', yearend:'Year-End', connections:'Connections', account:'Account', more:'More' }[tab] || 'GigTrack Pro';
+
+  return `
+  <div class="app">
+    <div class="topbar">
+      <div class="topbar-title">${pageTitle}</div>
+      <div class="topbar-right">
+        <span class="plan-chip">${planLabel}</span>
+        <button class="avatar-btn" onclick="tab='account';render()">${initials}</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="content-inner" id="page-content">
+        ${pageContent()}
+      </div>
+    </div>
+    <nav class="bottom-nav">
+      ${tabs.map(t => `<button class="nav-btn ${tab===t.id||((t.id==='more')&&['tax','yearend','connections','account'].includes(tab))?'active':''}" onclick="setTab('${t.id}')"><span class="nav-ico">${t.ico}</span><span class="nav-lbl">${t.lbl}</span></button>`).join('')}
+    </nav>
+  </div>`;
+}
+
+function setTab(t) {
+  if (t === 'more') {
+    // Show more menu
+    const wasActive = tab;
+    tab = 'more';
+    render();
+    return;
+  }
+  tab = t;
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};
+  const pg = document.getElementById('page-content');
+  if (pg) { pg.innerHTML = pageContent(); requestAnimationFrame(initCharts); }
+  document.querySelectorAll('.nav-btn').forEach(el => {
+    const tid = el.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+    el.classList.toggle('active', tid===tab || (tid==='more' && ['tax','yearend','connections','account','more'].includes(tab)));
+  });
+  document.querySelector('.topbar-title').textContent = { dashboard:'Dashboard', income:'Income Log', expenses:'Expenses', mileage:'Mileage', tax:'Tax Estimate', yearend:'Year-End', connections:'Connections', account:'Account', more:'More' }[tab] || 'GigTrack Pro';
+  location.hash = tab;
+}
+
+function pageContent() {
+  switch(tab) {
+    case 'dashboard':   return pgDashboard();
+    case 'income':      return pgIncome();
+    case 'expenses':    return pgExpenses();
+    case 'mileage':     return pgMileage();
+    case 'tax':         return pgTax();
+    case 'yearend':     return pgYearEnd();
+    case 'connections': return pgConnections();
+    case 'account':     return pgAccount();
+    case 'more':        return pgMore();
+    default:            return pgDashboard();
+  }
+}
+
+// ── FORMAT ──────────────────────────────────────
+const $n  = n => '$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = n => (+(n)||0).toFixed(1)+'%';
+const mi2 = n => (+(n)||0).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' mi';
+const fd  = d => { try{return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch{return d||'—';} };
+const today = () => new Date().toISOString().split('T')[0];
+function v(id){ return (document.getElementById(id)||{}).value||''; }
+function setBtnLoading(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.disabled = on;
+  el.innerHTML = on ? '<span class="spin"></span>' : el.dataset.label || el.innerHTML;
+  if (!on && el.dataset.label) el.innerHTML = el.dataset.label;
+}
+
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+function pgDashboard() {
+  const s = summary || {};
+  const goal = user?.monthly_goal || 5000;
+  const curMon = new Date().getMonth();
+  const monInc = (s.monthly?.inc || []).find(r => parseInt(r.m)-1 === curMon)?.v || 0;
+  const gPct = Math.min(100, monInc/goal*100);
+  const margin = s.totalIncome > 0 ? s.netProfit/s.totalIncome*100 : 0;
+  const connCount = Object.values(connections||{}).filter(c=>c.connected).length;
+
+  if (!s.totalIncome && !s.totalExp) {
+    return `
+    ${installBanner()}
+    <div style="text-align:center;padding:30px 0 16px">
+      <div style="font-size:48px;margin-bottom:10px">👋</div>
+      <div style="font-size:19px;font-weight:800;margin-bottom:8px">Welcome, ${user?.name?.split(' ')[0] || 'there'}!</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:24px">Connect your gig apps or add your first income entry to get started.</div>
+    </div>
+    <button class="btn btn-primary" style="margin-bottom:10px" onclick="setTab('income')">💰 Add Income</button>
+    <button class="btn btn-ghost" onclick="setTab('connections')">🔗 Connect Platforms</button>`;
+  }
+
+  return `
+  ${installBanner()}
+  ${connCount > 0 ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#166534;display:flex;align-items:center;gap:8px"><span>🔗</span><span><b>${connCount} platform${connCount>1?'s':''} connected.</b> Tap Connections to manage.</span></div>` : ''}
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-lbl">Total Income</div><div class="kpi-val g">${$n(s.totalIncome)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${s.netProfit>=0?'g':'r'}">${$n(s.netProfit)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Mileage Deduction</div><div class="kpi-val b">${$n(s.mileDed)}</div><div class="kpi-sub">${mi2(s.totalMiles)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tax Reserve</div><div class="kpi-val r">${$n(s.totalTax)}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Monthly Goal</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:4px">
+        <span>${$n(monInc)}</span><span>${$n(goal)}</span>
+      </div>
+      <div class="prog"><div class="prog-f" style="width:${gPct}%;background:${gPct>=100?'var(--g)':gPct>=50?'var(--p)':'var(--y)'}"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">${pct(gPct)} of monthly goal this month</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Income vs Expenses</div>
+      <div class="chart-wrap"><canvas id="ch-monthly"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title" style="margin-bottom:4px">Quick Stats</div>
+      ${[
+        ['Profit Margin', pct(margin)],
+        ['Expense Ratio', pct(s.totalIncome>0?s.totalExp/s.totalIncome*100:0)],
+        ['Quarterly Tax', $n(s.quarterlyPayment)],
+      ].map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px"><span style="color:var(--muted)">${l}</span><span style="font-weight:700">${v}</span></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+//  INCOME
+// ══════════════════════════════════════════
+function pgIncome() {
+  const total = income.reduce((a,i)=>a+(i.gross+i.tips+i.bonuses),0);
+  const platOptions = Object.entries(PLATFORMS_META).map(([k,p])=>`<option value="${k}">${p.name}</option>`).join('');
+  return `
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Add Income</div>
+      <div class="form-row"><div class="fg"><label>Date</label><input id="i-date" type="date" value="${today()}"></div><div class="fg"><label>Platform</label><select id="i-plat">${platOptions}</select></div></div>
+      <div class="form-row"><div class="fg"><label>Gross ($)</label><input id="i-gross" type="number" inputmode="decimal" placeholder="0.00" oninput="calcIT()"></div><div class="fg"><label>Tips ($)</label><input id="i-tips" type="number" inputmode="decimal" placeholder="0.00" oninput="calcIT()"></div></div>
+      <div class="form-row"><div class="fg"><label>Bonuses ($)</label><input id="i-bonus" type="number" inputmode="decimal" placeholder="0.00" oninput="calcIT()"></div><div class="fg"><label>Total</label><input id="i-tot" readonly style="font-weight:800;color:var(--g)"></div></div>
+      <button id="i-add" class="btn btn-primary" data-label="+ Add Entry" onclick="addIncome()">+ Add Entry</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Import from CSV <span style="font-size:12px;font-weight:400;color:var(--muted)">DoorDash, Uber Eats, Instacart, Amazon Flex</span></div>
+      <div class="form-row"><div class="fg"><label>Platform</label><select id="csv-plat"><option value="doordash">DoorDash</option><option value="ubereats">Uber Eats</option><option value="instacart">Instacart</option><option value="amazonflex">Amazon Flex</option></select></div></div>
+      <div class="upload-zone-inner">
+        <div class="upload-zone" id="drop-zone">
+          <div style="font-size:28px;margin-bottom:8px">📂</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Tap to upload CSV</div>
+          <div style="font-size:12px;color:var(--muted)">Download from your gig app → Earnings → Export</div>
+          <input type="file" accept=".csv" id="csv-file" onchange="importCSV()">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Entries <span style="font-size:12px;font-weight:500;color:var(--g)">${$n(total)}</span></div>
+      ${income.length === 0 ? `<div class="empty"><div class="empty-ico">💰</div><p>No entries yet</p></div>` : income.map(r=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-title">${r.platform} <span class="badge bp">${fd(r.date)}</span></div>
+          <div class="li-sub">Gross ${$n(r.gross)} · Tips ${$n(r.tips)}</div>
+        </div>
+        <div class="li-amount g">${$n(r.gross+r.tips+r.bonuses)}</div>
+        <button class="btn btn-danger btn-sm" onclick="delIncome('${r.id}')">✕</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function calcIT() {
+  const g=+(v('i-gross'))||0, t=+(v('i-tips'))||0, b=+(v('i-bonus'))||0;
+  const el=document.getElementById('i-tot'); if(el) el.value=$n(g+t+b);
+}
+
+async function addIncome() {
+  const date=v('i-date'), plat=v('i-plat'), gross=+(v('i-gross'))||0, tips=+(v('i-tips'))||0, bonus=+(v('i-bonus'))||0;
+  if(!date){toast('Please enter a date','⚠️');return;}
+  if(gross+tips+bonus<=0){toast('Enter an amount','⚠️');return;}
+  setBtnLoading('i-add',true);
+  const res = await api('POST','/api/income',{platform:PLATFORMS_META[plat]?.name||plat,platform_key:plat,date,gross,tips,bonuses:bonus});
+  if(res?.ok){ toast('Income added!','✅'); await reload(); render(); } else { toast(res?.error||'Error','❌'); setBtnLoading('i-add',false); }
+}
+
+async function delIncome(id) {
+  if(!confirm('Delete this entry?'))return;
+  await api('DELETE',`/api/income/${id}`);
+  toast('Deleted','🗑️'); await reload(); render();
+}
+
+async function importCSV() {
+  const file=document.getElementById('csv-file')?.files[0];
+  const plat=v('csv-plat');
+  if(!file)return;
+  toast('Importing CSV…','⏳');
+  const fd=new FormData(); fd.append('file',file);
+  const res=await api('POST',`/api/income/import/${plat}`,fd,true);
+  if(res?.ok){ toast(`✅ Imported ${res.imported} entries${res.dupes?` (${res.dupes} duplicates skipped)`:''}!`,'✅'); await reload(); render(); }
+  else toast(res?.error||'Import failed','❌');
+}
+
+// ══════════════════════════════════════════
+//  EXPENSES
+// ══════════════════════════════════════════
+function pgExpenses() {
+  const total=expenses.reduce((a,e)=>a+e.amount*e.business_pct/100,0);
+  return `
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Add Expense</div>
+      <div class="form-row"><div class="fg"><label>Date</label><input id="e-date" type="date" value="${today()}"></div><div class="fg"><label>Category</label><select id="e-cat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
+      <div class="form-row full"><div class="fg"><label>Description</label><input id="e-desc" placeholder="e.g. Shell gas station"></div></div>
+      <div class="form-row"><div class="fg"><label>Amount ($)</label><input id="e-amt" type="number" inputmode="decimal" placeholder="0.00" oninput="calcDed()"></div><div class="fg"><label>Business %</label><input id="e-pct" type="number" inputmode="numeric" value="100" oninput="calcDed()"></div></div>
+      <div class="form-row"><div class="fg"><label>Deductible</label><input id="e-ded" readonly style="font-weight:800;color:var(--r)"></div></div>
+      <button id="e-add" class="btn btn-primary" data-label="+ Add Expense" onclick="addExpense()">+ Add Expense</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Expenses <span style="font-size:12px;font-weight:500;color:var(--r)">${$n(total)} deductible</span></div>
+      ${expenses.length===0?`<div class="empty"><div class="empty-ico">💸</div><p>No expenses yet</p></div>`:expenses.map(e=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-title">${e.category} <span class="badge bc">${fd(e.date)}</span></div>
+          <div class="li-sub">${e.description||'—'} · ${e.business_pct}% biz</div>
+        </div>
+        <div class="li-amount r">${$n(e.amount*e.business_pct/100)}</div>
+        <button class="btn btn-danger btn-sm" onclick="delExpense('${e.id}')">✕</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function calcDed() {
+  const a=+(v('e-amt'))||0, p=+(v('e-pct'))||100;
+  const el=document.getElementById('e-ded'); if(el) el.value=$n(a*p/100);
+}
+async function addExpense() {
+  const date=v('e-date'),cat=v('e-cat'),desc=v('e-desc'),amt=+(v('e-amt'))||0,pct=+(v('e-pct'))||100;
+  if(!date||amt<=0){toast('Date and amount required','⚠️');return;}
+  setBtnLoading('e-add',true);
+  const res=await api('POST','/api/expenses',{date,category:cat,description:desc,amount:amt,business_pct:pct});
+  if(res?.ok){toast('Expense added!','✅');await reload();render();}else{toast(res?.error||'Error','❌');setBtnLoading('e-add',false);}
+}
+async function delExpense(id){if(!confirm('Delete?'))return;await api('DELETE',`/api/expenses/${id}`);toast('Deleted','🗑️');await reload();render();}
+
+// ══════════════════════════════════════════
+//  MILEAGE
+// ══════════════════════════════════════════
+function pgMileage() {
+  const s=summary||{};
+  return `
+  <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="kpi"><div class="kpi-lbl">Miles</div><div class="kpi-val b" style="font-size:17px">${mi2(s.totalMiles)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Rate</div><div class="kpi-val" style="font-size:17px">$${user?.mileage_rate||0.67}/mi</div></div>
+    <div class="kpi"><div class="kpi-lbl">Deduction</div><div class="kpi-val g" style="font-size:17px">${$n(s.mileDed)}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Log a Trip</div>
+      <div class="form-row"><div class="fg"><label>Date</label><input id="m-date" type="date" value="${today()}"></div><div class="fg"><label>Platform</label><select id="m-plat">${Object.entries(PLATFORMS_META).map(([k,p])=>`<option value="${p.name}">${p.name}</option>`).join('')}</select></div></div>
+      <div class="form-row"><div class="fg"><label>Start Odometer</label><input id="m-s" type="number" inputmode="numeric" placeholder="45230" oninput="calcMi()"></div><div class="fg"><label>End Odometer</label><input id="m-e" type="number" inputmode="numeric" placeholder="45310" oninput="calcMi()"></div></div>
+      <div class="form-row"><div class="fg"><label>Miles</label><input id="m-mi" readonly style="font-weight:800;color:var(--p)"></div><div class="fg"><label>Purpose</label><input id="m-pur" placeholder="Deliveries"></div></div>
+      <button id="m-add" class="btn btn-primary" data-label="+ Log Trip" onclick="addMileage()">+ Log Trip</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Trips</div>
+      ${mileage.length===0?`<div class="empty"><div class="empty-ico">🚗</div><p>No trips yet</p></div>`:mileage.map(m=>{const miles=Math.max(0,m.end_odo-m.start_odo);return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-title">${m.platform||'Trip'} <span class="badge bp">${fd(m.date)}</span></div>
+          <div class="li-sub">${m.purpose||'—'} · ${$n(miles*(user?.mileage_rate||0.67))} saved</div>
+        </div>
+        <div class="li-amount b">${mi2(miles)}</div>
+        <button class="btn btn-danger btn-sm" onclick="delMileage('${m.id}')">✕</button>
+      </div>`;}).join('')}
+    </div>
+  </div>`;
+}
+function calcMi(){const s=+(v('m-s'))||0,e=+(v('m-e'))||0,m=Math.max(0,e-s);const el=document.getElementById('m-mi');if(el)el.value=m>0?mi2(m):'0.0 mi';}
+async function addMileage(){
+  const date=v('m-date'),sO=+(v('m-s'))||0,eO=+(v('m-e'))||0,pur=v('m-pur'),plat=v('m-plat');
+  if(!date){toast('Date required','⚠️');return;}
+  setBtnLoading('m-add',true);
+  const res=await api('POST','/api/mileage',{date,start_odo:sO,end_odo:eO,purpose:pur,platform:plat});
+  if(res?.ok){toast('Trip logged!','✅');await reload();render();}else{toast(res?.error||'Error','❌');setBtnLoading('m-add',false);}
+}
+async function delMileage(id){if(!confirm('Delete?'))return;await api('DELETE',`/api/mileage/${id}`);toast('Deleted','🗑️');await reload();render();}
+
+// ══════════════════════════════════════════
+//  TAX ESTIMATE
+// ══════════════════════════════════════════
+function pgTax(){
+  const s=summary||{};
+  return `
+  <div class="kpi-grid" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+    <div class="kpi"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${s.netProfit>=0?'g':'r'}" style="font-size:18px">${$n(s.netProfit)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total Tax Est.</div><div class="kpi-val r" style="font-size:18px">${$n(s.totalTax)}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      ${[['Self-Employment Tax','15.3% × 92.35%',s.seTax],['Federal Income Tax','12% estimate',s.fedTax],[`State Tax (${user?.state||'—'})`,`${user?.state_tax_rate||0}%`,s.stateTax]].map(([l,sub,val])=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #f1f5f9">
+        <div><div style="font-size:14px;font-weight:600">${l}</div><div style="font-size:12px;color:var(--muted)">${sub}</div></div>
+        <div style="font-size:16px;font-weight:800">${$n(val)}</div>
+      </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0">
+        <div style="font-size:15px;font-weight:800">Total</div>
+        <div style="font-size:22px;font-weight:900;color:var(--r)">${$n(s.totalTax)}</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Quarterly Schedule</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${[['Q1','Apr 15'],['Q2','Jun 15'],['Q3','Sep 15'],['Q4','Jan 15']].map(([q,d])=>`
+        <div style="background:var(--light);border-radius:10px;padding:12px;text-align:center;border:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--muted);font-weight:600">${q}</div>
+          <div style="font-size:18px;font-weight:900;color:var(--p);margin:4px 0">${$n(s.quarterlyPayment)}</div>
+          <div style="font-size:11px;color:var(--muted)">Due ${d}</div>
+        </div>`).join('')}
+      </div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#78350f;margin-top:12px">⚠️ Planning estimates only. Consult a tax professional.</div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+//  YEAR-END
+// ══════════════════════════════════════════
+function pgYearEnd(){
+  const s=summary||{};
+  const pRows=Object.entries(s.byPlatform||[]).filter(([,r])=>r.v>0).sort((a,b)=>b[1].v-a[1].v);
+  const cRows=Object.entries(s.byCategory||[]).filter(([,r])=>r.v>0).sort((a,b)=>b[1].v-a[1].v);
+  return `
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-lbl">Total Income</div><div class="kpi-val g" style="font-size:18px">${$n(s.totalIncome)}</div><div class="kpi-sub">Sched C Line 1</div></div>
+    <div class="kpi"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${s.netProfit>=0?'g':'r'}" style="font-size:18px">${$n(s.netProfit)}</div><div class="kpi-sub">Sched C Line 31</div></div>
+    <div class="kpi"><div class="kpi-lbl">Expenses</div><div class="kpi-val r" style="font-size:18px">${$n(s.totalExp)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Miles</div><div class="kpi-val b" style="font-size:18px">${mi2(s.totalMiles)}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">By Platform</div>
+      ${pRows.length===0?`<div class="empty"><div class="empty-ico">💰</div><p>No income yet</p></div>`:pRows.map(([k,r])=>`
+      <div class="list-item"><div class="li-main"><div class="li-title">${r.platform_key||k}</div></div><div class="li-amount g">${$n(r.v)}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">By Expense Category</div>
+      ${cRows.length===0?`<div class="empty"><div class="empty-ico">💸</div><p>No expenses yet</p></div>`:cRows.map(([k,r])=>`
+      <div class="list-item"><div class="li-main"><div class="li-title">${r.category||k}</div></div><div class="li-amount r">${$n(r.v)}</div></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+//  CONNECTIONS
+// ══════════════════════════════════════════
+function pgConnections(){
+  return `
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Platform Connections</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Link your gig apps to import earnings. We never store passwords.</div>
+      ${Object.entries(PLATFORMS_META).map(([k,p])=>{
+        const conn=connections[k];
+        const isConn=conn?.connected;
+        const canConn=p.plans.includes(user?.plan||'free');
+        return `
+        <div class="plat-card">
+          <div class="plat-ico" style="background:${p.bg}">${p.ico}</div>
+          <div class="plat-info">
+            <div class="plat-name">${p.name}</div>
+            <div class="plat-desc">
+              ${isConn?`<span class="dot dot-g"></span><b style="color:var(--g)">Connected</b>${conn.total_earnings?` · ${$n(conn.total_earnings)} synced`:''}`:
+              `<span class="dot dot-grey"></span>Not connected`}
+            </div>
+          </div>
+          ${isConn
+            ? `<button class="btn btn-danger btn-sm" onclick="disconnectPlatform('${k}')">Remove</button>`
+            : canConn
+              ? p.type==='csv'
+                ? `<button class="btn btn-ghost btn-sm" onclick="showCSVImport('${k}')">Import CSV</button>`
+                : `<button class="btn btn-primary btn-sm" onclick="startOAuth('${k}')">Connect</button>`
+              : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="setTab('account')">Pro ⭐</button>`}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+  <div id="csv-import-area"></div>
+  <div class="card">
+    <div class="card-body" style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">🔒</span>
+      <div>GigTrack uses read-only access only. We never post, modify, or store your login credentials.</div>
+    </div>
+  </div>`;
+}
+
+function showCSVImport(platform) {
+  const p = PLATFORMS_META[platform];
+  const area = document.getElementById('csv-import-area');
+  if (!area) return;
+  area.innerHTML = `
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Import ${p.name} CSV</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        In the ${p.name} app: <b>Earnings → (select period) → Export / Share</b>. Then select the CSV file below.
+      </div>
+      <div class="upload-zone-inner">
+        <div class="upload-zone">
+          <div style="font-size:28px;margin-bottom:8px">📂</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Tap to select ${p.name} CSV</div>
+          <input type="file" accept=".csv" onchange="importPlatformCSV('${platform}', this)">
+        </div>
+      </div>
+    </div>
+  </div>`;
+  area.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function importPlatformCSV(platform, input) {
+  const file = input.files[0];
+  if (!file) return;
+  toast(`Importing ${PLATFORMS_META[platform]?.name} data…`, '⏳');
+  const fd = new FormData(); fd.append('file', file);
+  const res = await api('POST', `/api/income/import/${platform}`, fd, true);
+  if (res?.ok) {
+    // Mark as connected with the import stats
+    await api('POST', `/api/connect/${platform}/csv-connected`, { total_earnings: res.total_amount || 0, total_trips: res.imported });
+    toast(`✅ ${res.imported} entries imported!`, '✅');
+    await reload(); render();
+  } else {
+    toast(res?.error || 'Import failed', '❌');
+  }
+}
+
+async function startOAuth(platform) {
+  toast('Opening authorization…', '🔗');
+  const res = await api('GET', `/api/connect/${platform}/start`);
+  if (res?.url) window.location.href = res.url;
+  else if (res?.error) {
+    toast(res.error, '⚠️');
+    if (res.setup) alert(`Setup required:\n\n${res.setup}`);
+  }
+}
+
+async function disconnectPlatform(platform) {
+  if (!confirm(`Disconnect ${PLATFORMS_META[platform]?.name}?`)) return;
+  await api('POST', `/api/connect/${platform}/disconnect`);
+  toast('Disconnected', '🔌');
+  await reload(); render();
+}
+
+// ══════════════════════════════════════════
+//  ACCOUNT
+// ══════════════════════════════════════════
+function pgAccount(){
+  const plan=user?.plan||'free';
+  const planDisplay={free:'Free',pro:'Pro ⭐',business:'Business 💼'}[plan]||plan;
+  return `
+  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:14px;padding:20px;color:#fff;margin-bottom:14px">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px">${user?.name || 'Gig Worker'}</div>
+    <div style="font-size:13px;opacity:.75;margin-bottom:14px">${user?.email || ''}</div>
+    <div style="display:inline-block;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700">${planDisplay}</div>
+  </div>
+
+  ${plan==='free'?`
+  <div class="card" style="border:1.5px solid var(--p)">
+    <div class="card-body" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">⚡</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px">Upgrade to Pro — $9.99/mo</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Connect all platforms, auto-sync earnings, quarterly tax reminders.</div>
+      <button id="upgrade-btn" class="btn btn-stripe" data-label="Upgrade to Pro →" onclick="checkout('pro')">Upgrade to Pro →</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">30-day money-back guarantee</div>
+    </div>
+  </div>`:''}
+
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Profile Settings</div>
+      <div class="field"><label>Display Name</label><input id="p-name" value="${user?.name||''}"></div>
+      <div class="form-row"><div class="fg"><label>State</label><input id="p-state" value="${user?.state||''}" placeholder="CA"></div><div class="fg"><label>State Tax %</label><input id="p-srate" type="number" step="0.1" value="${user?.state_tax_rate||4}"></div></div>
+      <div class="form-row"><div class="fg"><label>Monthly Goal ($)</label><input id="p-goal" type="number" value="${user?.monthly_goal||5000}"></div><div class="fg"><label>Mileage Rate</label><input id="p-mrate" type="number" step="0.001" value="${user?.mileage_rate||0.67}"></div></div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+
+  ${plan!=='free'?`
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">Billing</div>
+      <button class="btn btn-ghost" onclick="openBillingPortal()">Manage Subscription →</button>
+    </div>
+  </div>`:''}
+
+  <div style="margin-top:6px">
+    <button class="btn btn-ghost" style="border-color:#fee2e2;color:var(--r)" onclick="logout()">Sign Out</button>
+  </div>`;
+}
+
+async function checkout(plan){
+  setBtnLoading('upgrade-btn',true);
+  const res=await api('POST','/api/billing/checkout',{plan});
+  if(res?.url) window.location.href=res.url;
+  else if(res?.error){ toast(res.error,'⚠️'); setBtnLoading('upgrade-btn',false); }
+}
+
+async function openBillingPortal(){
+  toast('Opening billing portal…','💳');
+  const res=await api('POST','/api/billing/portal');
+  if(res?.url) window.location.href=res.url;
+  else toast(res?.error||'Error','❌');
+}
+
+async function saveProfile(){
+  const res=await api('PUT','/api/auth/profile',{name:v('p-name'),state:v('p-state'),state_tax_rate:+(v('p-srate'))||4,monthly_goal:+(v('p-goal'))||5000,mileage_rate:+(v('p-mrate'))||0.67,tax_year:user?.tax_year||new Date().getFullYear()});
+  if(res?.ok){ user={...user,name:v('p-name'),state:v('p-state'),state_tax_rate:+(v('p-srate'))||4,monthly_goal:+(v('p-goal'))||5000,mileage_rate:+(v('p-mrate'))||0.67}; localStorage.setItem('gt_user',JSON.stringify(user)); toast('Profile saved!','✅'); await reload(); render(); }
+  else toast(res?.error||'Error','❌');
+}
+
+// ══════════════════════════════════════════
+//  MORE MENU
+// ══════════════════════════════════════════
+function pgMore(){
+  return `
+  <div class="card">
+    <div class="card-body">
+      ${[['🧮','Tax Estimate','tax'],['📋','Year-End Summary','yearend'],['🔗','Connections','connections'],['👤','Account','account']].map(([ico,lbl,id])=>`
+      <div class="list-item" style="cursor:pointer" onclick="setTab('${id}')">
+        <div class="li-main"><div class="li-title">${ico} ${lbl}</div></div>
+        <span style="color:var(--muted)">›</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+//  CHARTS
+// ══════════════════════════════════════════
+function initCharts(){
+  if(tab!=='dashboard'||!summary) return;
+  const s=summary;
+  const monEl=document.getElementById('ch-monthly');
+  if(monEl){
+    const incByMonth=Array(12).fill(0), expByMonth=Array(12).fill(0);
+    (s.monthly?.inc||[]).forEach(r=>{ const m=parseInt(r.m)-1; if(m>=0&&m<12) incByMonth[m]=r.v; });
+    (s.monthly?.exp||[]).forEach(r=>{ const m=parseInt(r.m)-1; if(m>=0&&m<12) expByMonth[m]=r.v; });
+    charts.monthly=new Chart(monEl,{type:'bar',data:{labels:MONTHS,datasets:[{label:'Income',data:incByMonth,backgroundColor:'rgba(16,185,129,.8)',borderRadius:4},{label:'Expenses',data:expByMonth,backgroundColor:'rgba(239,68,68,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:10}}}}}});
+  }
+}
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function installBanner(){
+  if(!installPrompt) return '';
+  return `<div class="install-banner"><div><div style="font-size:14px;font-weight:800">Add to Home Screen</div><p>Install GigTrack for quick access</p></div><button class="btn" style="background:rgba(255,255,255,.25);color:#fff;border:none;font-size:13px;min-height:38px;padding:8px 14px" onclick="installApp()">Install</button></div>`;
+}
+
+async function installApp(){
+  if(!installPrompt) return;
+  installPrompt.prompt();
+  const {outcome} = await installPrompt.userChoice;
+  if(outcome==='accepted') installPrompt=null;
+  render();
+}
+
+function toast(msg, ico='ℹ️'){
+  const el=document.getElementById('toast');
+  if(!el)return;
+  el.innerHTML=`${ico} ${msg}`;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+async function reload(){
+  [summary,income,expenses,mileage]=await Promise.all([api('GET','/api/summary'),api('GET','/api/income'),api('GET','/api/expenses'),api('GET','/api/mileage')]);
+  if(summary){connections=summary.connections||{};user={...user,...summary.user};}
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+// Handle OAuth callback success
+if(location.hash.includes('connected=') || location.search.includes('checkout=success')){
+  const p=new URLSearchParams(location.hash.slice(1)+'&'+location.search.slice(1));
+  if(p.get('connected')) toast(`✅ ${PLATFORMS_META[p.get('connected')]?.name||'Platform'} connected!`,'✅');
+  if(p.get('checkout')==='success') toast('✅ Plan upgraded! Welcome to Pro.','🎉');
+  history.replaceState(null,'','/');
+  tab='connections';
+}
+
+// PWA install prompt
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installPrompt=e; });
+window.addEventListener('appinstalled',()=>{ installPrompt=null; toast('App installed!','📱'); });
+
+// Service worker
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+// Boot
+(async()=>{
+  if(token && user){
+    try{ await loadAll(); } catch(e){ console.warn('Load failed, showing cached data'); }
+  } else if(!token) {
+    tab = 'login';
+  }
+  render();
+})();
+</script>
+</body>
+</html>
