@@ -33,7 +33,7 @@ module.exports = async function parseDoorDash(filePath) {
 
       if (type.includes('tip'))        grouped[date].tips    += amount;
       else if (type.includes('bonus') || type.includes('peak') || type.includes('challenge')) grouped[date].bonuses += amount;
-      else if (type.includes('base') || type.includes('delivery') || type.includes('pay'))   grouped[date].gross   += amount;
+      else if (type.includes('base') || type.includes('delivery') || type.includes('pay'))   { grouped[date].gross += amount; grouped[date].orders++; }
       else                             grouped[date].gross   += amount;
 
       const ref = r['Order #'] || r['order_id'] || r['Description'] || '';

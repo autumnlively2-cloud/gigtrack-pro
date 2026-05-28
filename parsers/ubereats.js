@@ -16,9 +16,11 @@ module.exports = async function parseUberEats(filePath) {
     const gross   = pm(r['Fare'] || r['Trip Earnings'] || r['Earnings'] || r['Base Fare'] || '0');
     const tips    = pm(r['Tips'] || r['Tip'] || '0');
     const bonuses = pm(r['Boost'] || r['Surge'] || r['Promotion'] || r['Quest Bonus'] || '0');
+    // Only count rows with a Trip/Order ID as actual deliveries
+    const isDelivery = !!(r['Trip ID'] || r['Order ID']);
     return {
       platform: 'Uber Eats', platform_key: 'ubereats',
-      date, orders: 1,
+      date, orders: isDelivery ? 1 : 0,
       gross, tips, bonuses,
       platform_ref: `ue_${r['Trip ID'] || r['Order ID'] || date}`,
     };
