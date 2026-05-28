@@ -3,7 +3,7 @@ services:
     name: gigtrack-pro
     env: node
     region: oregon
-    plan: starter
+    plan: free
     buildCommand: npm install
     startCommand: node server.js
     envVars:
@@ -42,4 +42,4 @@ databases:
   - name: gigtrack-db
     databaseName: gigtrack
     user: gigtrack
-    plan: starter
+    plan: free
