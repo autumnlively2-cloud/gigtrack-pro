@@ -321,8 +321,8 @@ function renderAuth() {
       <p class="sub">${isLogin ? 'Log in to your account' : 'Track every dollar across all your gig apps'}</p>
       <div id="auth-err" class="err-msg" style="display:none"></div>
       ${!isLogin ? `<div class="field"><label>Full Name</label><input id="su-name" placeholder="Alex Rivera" autocomplete="name" onkeydown="if(event.key==='Enter')doSignup()"></div>` : ''}
-      <div class="field"><label>Email</label><input id="${isLogin?'li':'su'}-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()}"}></div>
-      <div class="field"><label>Password</label><input id="${isLogin?'li':'su'}-pass" type="password" placeholder="••••••••" autocomplete="${isLogin?'current':'new'}-password" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()}"}"></div>
+      <div class="field"><label>Email</label><input id="${isLogin?'li':'su'}-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()'}"></div>
+      <div class="field"><label>Password</label><input id="${isLogin?'li':'su'}-pass" type="password" placeholder="••••••••" autocomplete="${isLogin?'current':'new'}-password" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doSignup()'}"></div>
       <button id="${isLogin?'li':'su'}-btn" class="btn btn-primary" onclick="${isLogin?'doLogin()':'doSignup()'}">
         ${isLogin ? 'Log in' : 'Create account'}
       </button>
