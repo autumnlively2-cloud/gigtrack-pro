@@ -560,9 +560,21 @@ async function importCSV() {
 function pgExpenses() {
   const total=expenses.reduce((a,e)=>a+e.amount*e.business_pct/100,0);
   return `
+  <input type="file" id="receipt-file" accept="image/*" capture="environment" style="display:none" onchange="scanReceipt(this)">
   <div class="card">
     <div class="card-body">
-      <div class="card-title">Add Expense</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin:0">Add Expense</div>
+        <button class="btn" style="background:var(--pl);color:var(--pd);font-size:13px;padding:6px 12px;border-radius:8px;display:flex;align-items:center;gap:6px" onclick="document.getElementById('receipt-file').click()">
+          📷 Scan Receipt
+        </button>
+      </div>
+      <div id="receipt-preview" style="display:none;margin-bottom:12px;border-radius:10px;overflow:hidden;border:2px solid var(--p);position:relative">
+        <img id="receipt-img" style="width:100%;max-height:180px;object-fit:cover;display:block">
+        <div id="receipt-scanning" style="display:none;position:absolute;inset:0;background:rgba(99,102,241,0.85);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;gap:8px">
+          <span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Reading receipt…
+        </div>
+      </div>
       <div class="form-row"><div class="fg"><label>Date</label><input id="e-date" type="date" value="${today()}"></div><div class="fg"><label>Category</label><select id="e-cat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
       <div class="form-row full"><div class="fg"><label>Description</label><input id="e-desc" placeholder="e.g. Shell gas station"></div></div>
       <div class="form-row"><div class="fg"><label>Amount ($)</label><input id="e-amt" type="number" inputmode="decimal" placeholder="0.00" oninput="calcDed()"></div><div class="fg"><label>Business %</label><input id="e-pct" type="number" inputmode="numeric" value="100" oninput="calcDed()"></div></div>
@@ -590,12 +602,58 @@ function calcDed() {
   const a=+(v('e-amt'))||0, p=+(v('e-pct'))||100;
   const el=document.getElementById('e-ded'); if(el) el.value=$n(a*p/100);
 }
+
+async function scanReceipt(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Show preview
+  const preview = document.getElementById('receipt-preview');
+  const img     = document.getElementById('receipt-img');
+  const overlay = document.getElementById('receipt-scanning');
+  if (preview && img) {
+    img.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  }
+  if (overlay) { overlay.style.display = 'flex'; }
+  try {
+    const fd = new FormData();
+    fd.append('receipt', file);
+    const token = localStorage.getItem('gt_token');
+    const res = await fetch('/api/receipts/scan', {
+      method: 'POST',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Scan failed', '❌'); return; }
+    // Fill form
+    if (data.date)        { const el=document.getElementById('e-date'); if(el) el.value=data.date; }
+    if (data.amount)      { const el=document.getElementById('e-amt');  if(el) { el.value=data.amount.toFixed(2); calcDed(); } }
+    if (data.description) { const el=document.getElementById('e-desc'); if(el) el.value=data.description; }
+    if (data.category) {
+      const sel=document.getElementById('e-cat');
+      if (sel) { for (let i=0;i<sel.options.length;i++) { if(sel.options[i].value===data.category){sel.selectedIndex=i;break;} } }
+    }
+    toast('Receipt scanned! Review & save.', '✅');
+  } catch (err) {
+    toast('Scan failed — fill in manually', '⚠️');
+  } finally {
+    if (overlay) overlay.style.display = 'none';
+    input.value = '';
+  }
+}
+
 async function addExpense() {
   const date=v('e-date'),cat=v('e-cat'),desc=v('e-desc'),amt=+(v('e-amt'))||0,pct=+(v('e-pct'))||100;
   if(!date||amt<=0){toast('Date and amount required','⚠️');return;}
   setBtnLoading('e-add',true);
   const res=await api('POST','/api/expenses',{date,category:cat,description:desc,amount:amt,business_pct:pct});
-  if(res?.ok){toast('Expense added!','✅');await reload();render();}else{toast(res?.error||'Error','❌');setBtnLoading('e-add',false);}
+  if(res?.ok){
+    toast('Expense added!','✅');
+    const preview=document.getElementById('receipt-preview');
+    if(preview) preview.style.display='none';
+    await reload();render();
+  }else{toast(res?.error||'Error','❌');setBtnLoading('e-add',false);}
 }
 async function delExpense(id){if(!confirm('Delete?'))return;await api('DELETE',`/api/expenses/${id}`);toast('Deleted','🗑️');await reload();render();}
 

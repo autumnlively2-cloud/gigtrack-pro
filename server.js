@@ -2,6 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
+const fs      = require('fs');
+
+// Ensure upload directories exist
+['uploads', 'uploads/receipts'].forEach(dir =>
+  fs.mkdirSync(path.join(__dirname, dir), { recursive: true })
+);
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -31,6 +37,7 @@ app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/mileage',  require('./routes/mileage'));
 app.use('/api/billing',  require('./routes/billing'));
 app.use('/api/connect',  require('./routes/connect'));
+app.use('/api/receipts', require('./routes/receipts'));
 
 // ─── Summary / Dashboard ─────────────────────────
 const auth = require('./middleware/auth');
