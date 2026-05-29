@@ -27,8 +27,16 @@ async function initDb() {
       mileage_rate           DOUBLE PRECISION DEFAULT 0.670,
       tax_year               INTEGER DEFAULT EXTRACT(YEAR FROM NOW())::INTEGER,
       business_name          TEXT DEFAULT '',
+      phone                  TEXT DEFAULT '',
+      mfa_method             TEXT DEFAULT 'none',
+      otp_hash               TEXT DEFAULT '',
+      otp_expires            TIMESTAMPTZ,
       created_at             TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_method TEXT DEFAULT 'none';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_hash TEXT DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMPTZ;
     CREATE TABLE IF NOT EXISTS income (
       id           TEXT PRIMARY KEY,
       user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -266,9 +274,20 @@ async function getMonthlyBreakdown(userId) {
   return { inc: inc.rows, exp: exp.rows, mil: mil.rows, byPlat: byPlat.rows, byCat: byCat.rows };
 }
 
+async function saveOTP(userId, otpHash, expiresAt) {
+  await pool.query('UPDATE users SET otp_hash=$2, otp_expires=$3 WHERE id=$1', [userId, otpHash, expiresAt]);
+}
+async function clearOTP(userId) {
+  await pool.query("UPDATE users SET otp_hash='', otp_expires=NULL WHERE id=$1", [userId]);
+}
+async function updateMFA(userId, phone, mfaMethod) {
+  await pool.query('UPDATE users SET phone=$2, mfa_method=$3 WHERE id=$1', [userId, phone || '', mfaMethod || 'email']);
+}
+
 module.exports = {
   pool, uid, initDb,
   getUser, getUserByEmail, createUser, updateUser, setUserPlan, setUserPlanByCustomerId,
+  saveOTP, clearOTP, updateMFA,
   getIncome, getIncomeById, createIncome, updateIncome, deleteIncome, incomeExists,
   getExpenses, createExpense, updateExpense, deleteExpense,
   getMileage, createMileage, updateMileage, deleteMileage,

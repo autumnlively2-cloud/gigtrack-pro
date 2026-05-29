@@ -229,6 +229,7 @@ let summary = null;
 let income  = [], expenses = [], mileage = [], connections = {};
 let charts  = {};
 let installPrompt = null;
+let pendingToken = null;
 
 // ══════════════════════════════════════════
 //  API HELPER
@@ -272,7 +273,62 @@ async function doLogin() {
   const res = await api('POST', '/api/auth/login', { email, password: pass });
   setBtnLoading('li-btn', false);
   if (res?.error) return showAuthError(res.error);
+  if (res?.pending_mfa) {
+    pendingToken = res.pending_token;
+    tab = 'otp';
+    document.getElementById('root').innerHTML = renderOTP(res.hint || 'Check your email or phone for a 6-digit code.');
+    return;
+  }
   if (res?.token) { token = res.token; user = res.user; localStorage.setItem('gt_token', token); localStorage.setItem('gt_user', JSON.stringify(user)); tab = 'dashboard'; await loadAll(); render(); }
+}
+
+
+async function doVerifyOTP() {
+  const otp = v('otp-code');
+  if (!otp || otp.length !== 6) return toast('Enter the 6-digit code', '⚠️');
+  const errEl = document.getElementById('otp-err');
+  if (errEl) errEl.style.display = 'none';
+  const res = await api('POST', '/api/auth/verify-otp', { pending_token: pendingToken, otp });
+  if (res?.token) {
+    token = res.token; user = res.user;
+    localStorage.setItem('gt_token', token);
+    localStorage.setItem('gt_user', JSON.stringify(user));
+    pendingToken = null; tab = 'dashboard'; await loadAll(); render();
+  } else {
+    if (errEl) { errEl.textContent = res?.error || 'Invalid code'; errEl.style.display = 'block'; }
+  }
+}
+
+async function doResendOTP() {
+  const res = await api('POST', '/api/auth/resend-otp', { pending_token: pendingToken });
+  if (res?.ok) toast('New code sent!', '✅');
+  else toast(res?.error || 'Failed to resend', '❌');
+}
+
+function renderOTP(hint) {
+  return `
+  <div class="auth-screen">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="auth-logo-ico">🔐</div>
+        <h1>GigTrack Pro</h1>
+      </div>
+      <h2>Verify your identity</h2>
+      <p class="sub">${hint}</p>
+      <div id="otp-err" class="err-msg" style="display:none"></div>
+      <div class="field">
+        <label>6-digit code</label>
+        <input id="otp-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
+          style="font-size:28px;letter-spacing:8px;text-align:center;font-weight:700"
+          onkeydown="if(event.key==='Enter')doVerifyOTP()">
+      </div>
+      <button class="btn btn-primary" onclick="doVerifyOTP()">Verify</button>
+      <div class="auth-switch" style="margin-top:12px">
+        <span onclick="doResendOTP()">Resend code</span> &nbsp;·&nbsp;
+        <span onclick="tab='login';pendingToken=null;render()">Back to sign in</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 function showAuthError(msg) {
@@ -912,6 +968,27 @@ function pgAccount(){
     </div>
   </div>`:''}
 
+
+  <div class="card">
+    <div class="card-body">
+      <div class="card-title">🔐 Login Security (2FA)</div>
+      <div class="field"><label>Method</label>
+        <select id="mfa-method" onchange="togglePhoneField()">
+          <option value="none"${(user?.mfa_method||'none')==='none'?' selected':''}>Off — no verification code</option>
+          <option value="email"${(user?.mfa_method||'none')==='email'?' selected':''}>Email code</option>
+          <option value="sms"${(user?.mfa_method||'none')==='sms'?' selected':''}>SMS text code</option>
+          <option value="both"${(user?.mfa_method||'none')==='both'?' selected':''}>Both email & SMS</option>
+        </select>
+      </div>
+      <div id="mfa-phone-row" style="display:${(user?.mfa_method==='sms'||user?.mfa_method==='both')?'block':'none'}">
+        <div class="field"><label>Phone Number</label>
+          <input id="mfa-phone" type="tel" placeholder="+15555551234" value="${user?.phone||''}">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveMFA()">Save Security Settings</button>
+    </div>
+  </div>
+
   <div style="margin-top:6px">
     <button class="btn btn-ghost" style="border-color:#fee2e2;color:var(--r)" onclick="logout()">Sign Out</button>
   </div>`;
@@ -935,6 +1012,27 @@ async function saveProfile(){
   const res=await api('PUT','/api/auth/profile',{name:v('p-name'),state:v('p-state'),state_tax_rate:+(v('p-srate'))||4,monthly_goal:+(v('p-goal'))||5000,mileage_rate:+(v('p-mrate'))||0.67,tax_year:user?.tax_year||new Date().getFullYear()});
   if(res?.ok){ user={...user,name:v('p-name'),state:v('p-state'),state_tax_rate:+(v('p-srate'))||4,monthly_goal:+(v('p-goal'))||5000,mileage_rate:+(v('p-mrate'))||0.67}; localStorage.setItem('gt_user',JSON.stringify(user)); toast('Profile saved!','✅'); await reload(); render(); }
   else toast(res?.error||'Error','❌');
+}
+
+
+function togglePhoneField() {
+  const m = document.getElementById('mfa-method')?.value;
+  const row = document.getElementById('mfa-phone-row');
+  if (row) row.style.display = (m === 'sms' || m === 'both') ? 'block' : 'none';
+}
+
+async function saveMFA() {
+  const method = document.getElementById('mfa-method')?.value || 'none';
+  const phone  = document.getElementById('mfa-phone')?.value || '';
+  if ((method === 'sms' || method === 'both') && !phone) {
+    return toast('Please enter a phone number for SMS codes.', '⚠️');
+  }
+  const res = await api('PUT', '/api/auth/mfa', { mfa_method: method, phone });
+  if (res?.ok) {
+    user.mfa_method = method; user.phone = phone;
+    localStorage.setItem('gt_user', JSON.stringify(user));
+    toast('Security settings saved!', '✅');
+  } else toast(res?.error || 'Error saving settings', '❌');
 }
 
 // ══════════════════════════════════════════
@@ -964,68 +1062,66 @@ function initCharts(){
     const incByMonth=Array(12).fill(0), expByMonth=Array(12).fill(0);
     (s.monthly?.inc||[]).forEach(r=>{ const m=parseInt(r.m)-1; if(m>=0&&m<12) incByMonth[m]=r.v; });
     (s.monthly?.exp||[]).forEach(r=>{ const m=parseInt(r.m)-1; if(m>=0&&m<12) expByMonth[m]=r.v; });
-    charts.monthly=new Chart(monEl,{type:'bar',data:{labels:MONTHS,datasets:[{label:'Income',data:incByMonth,backgroundColor:'rgba(16,185,129,.8)',borderRadius:4},{label:'Expenses',data:expByMonth,backgroundColor:'rgba(239,68,68,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:10}}}}}});
+    charts.monthly=new Chart(monEl,{type:'bar',data:{labels:MONTHS,datasets:[
+      {label:'Income',data:incByMonth,backgroundColor:'rgba(16,185,129,.8)',borderRadius:4},
+      {label:'Expenses',data:expByMonth,backgroundColor:'rgba(239,68,68,.7)',borderRadius:4}
+    ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'$'+v.toLocaleString()}}}}});
+  }
+  const platEl=document.getElementById('ch-platform');
+  if(platEl){
+    const byPlat=s.monthly?.byPlat||[];
+    charts.platform=new Chart(platEl,{type:'doughnut',data:{
+      labels:byPlat.map(r=>r.platform_key||r.platform||'Other'),
+      datasets:[{data:byPlat.map(r=>parseFloat(r.v)||0),backgroundColor:['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6']}]
+    },options:{responsive:true,plugins:{legend:{position:'bottom'}}}});
   }
 }
 
 // ══════════════════════════════════════════
-//  HELPERS
+//  SCAN RECEIPT (GigTrack Pro)
 // ══════════════════════════════════════════
-function installBanner(){
-  if(!installPrompt) return '';
-  return `<div class="install-banner"><div><div style="font-size:14px;font-weight:800">Add to Home Screen</div><p>Install GigTrack for quick access</p></div><button class="btn" style="background:rgba(255,255,255,.25);color:#fff;border:none;font-size:13px;min-height:38px;padding:8px 14px" onclick="installApp()">Install</button></div>`;
-}
-
-async function installApp(){
-  if(!installPrompt) return;
-  installPrompt.prompt();
-  const {outcome} = await installPrompt.userChoice;
-  if(outcome==='accepted') installPrompt=null;
-  render();
-}
-
-function toast(msg, ico='ℹ️'){
-  const el=document.getElementById('toast');
-  if(!el)return;
-  el.innerHTML=`${ico} ${msg}`;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t=setTimeout(()=>el.classList.remove('show'),3000);
-}
-
-async function reload(){
-  [summary,income,expenses,mileage]=await Promise.all([api('GET','/api/summary'),api('GET','/api/income'),api('GET','/api/expenses'),api('GET','/api/mileage')]);
-  if(summary){connections=summary.connections||{};user={...user,...summary.user};}
+async function scanReceipt(inputEl) {
+  if (!inputEl?.files[0]) return;
+  const prev = document.getElementById('receipt-preview');
+  const img  = document.getElementById('receipt-img');
+  const overlay = document.getElementById('scan-overlay');
+  if (prev) prev.style.display = 'block';
+  if (overlay) overlay.style.display = 'flex';
+  if (img) img.src = URL.createObjectURL(inputEl.files[0]);
+  const fd = new FormData();
+  fd.append('receipt', inputEl.files[0]);
+  try {
+    const r = await fetch('/api/receipts/scan', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    const data = await r.json();
+    if (data.date)        { const d = document.getElementById('e-date'); if(d) d.value = data.date; }
+    if (data.amount)      { const a = document.getElementById('e-amount'); if(a) a.value = data.amount; }
+    if (data.description) { const s = document.getElementById('e-desc'); if(s) s.value = data.description; }
+    if (data.category)    { const cat = document.getElementById('e-cat'); if(cat) cat.value = data.category; }
+    if (data.merchant)    { const m = document.getElementById('e-desc'); if(m && !m.value) m.value = data.merchant; }
+    toast('Receipt scanned!', '✅');
+  } catch(e) {
+    toast('Scan failed — fill in manually', '⚠️');
+  } finally {
+    if (overlay) overlay.style.display = 'none';
+  }
 }
 
 // ══════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════
-// Handle OAuth callback success
-if(location.hash.includes('connected=') || location.search.includes('checkout=success')){
-  const p=new URLSearchParams(location.hash.slice(1)+'&'+location.search.slice(1));
-  if(p.get('connected')) toast(`✅ ${PLATFORMS_META[p.get('connected')]?.name||'Platform'} connected!`,'✅');
-  if(p.get('checkout')==='success') toast('✅ Plan upgraded! Welcome to Pro.','🎉');
-  history.replaceState(null,'','/');
-  tab='connections';
-}
-
-// PWA install prompt
-window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installPrompt=e; });
-window.addEventListener('appinstalled',()=>{ installPrompt=null; toast('App installed!','📱'); });
-
-// Service worker
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
-
-// Boot
-(async()=>{
-  if(token && user){
-    try{ await loadAll(); } catch(e){ console.warn('Load failed, showing cached data'); }
-  } else if(!token) {
-    tab = 'login';
-  }
+if (token) {
+  api('GET','/api/auth/me').then(me => {
+    if (me && !me.error) { user = me; localStorage.setItem('gt_user', JSON.stringify(user)); loadAll().then(render); }
+    else { token = null; user = null; localStorage.removeItem('gt_token'); localStorage.removeItem('gt_user'); render(); }
+  });
+} else {
+  tab = 'login';
   render();
-})();
+}
 </script>
 </body>
 </html>
